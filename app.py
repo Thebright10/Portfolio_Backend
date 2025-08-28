@@ -12,7 +12,10 @@ LOG_FILE = os.path.join(os.path.dirname(__file__), "visitors.jsonl")
 
 def get_location(ip):
     try:
-        resp = requests.get(f"http://ip-api.com/json/{ip}?fields=status,country,regionName,city,isp,lat,lon,query,timezone", timeout=5)
+        resp = requests.get(
+            f"http://ip-api.com/json/{ip}?fields=status,country,regionName,city,isp,lat,lon,query,timezone",
+            timeout=5
+        )
         data = resp.json()
         if data.get("status") == "success":
             return {
@@ -39,10 +42,8 @@ def save_log(doc):
 
 @app.route("/log-visitor", methods=["POST"])
 def log_visitor():
-    # Get the client IP
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
     ip = ip.split(',')[0].strip()  # In case of multiple IPs
-
     ua = request.headers.get("User-Agent", "")
     payload = request.get_json(silent=True) or {}
 
@@ -51,15 +52,11 @@ def log_visitor():
     success = bool(payload.get("success", False))
     extra = payload.get("extra", {})
 
-    # Determine location
     if ip == "127.0.0.1" or ip.startswith("192.168.") or ip.startswith("10."):
-        # Localhost or private IP
         location = {"country": "Local", "region": "", "city": "", "isp": ""}
     else:
-        # Fetch location from ip-api
         location = get_location(ip)
 
-    # Prepare log entry
     doc = {
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
         "ip": ip,
@@ -113,6 +110,9 @@ def view_logs_dashboard():
                 <th>Section</th>
                 <th>Action</th>
                 <th>Success</th>
+                <th>Device</th>
+                <th>Platform</th>
+                <th>Language</th>
             </tr>
     """
 
@@ -128,6 +128,9 @@ def view_logs_dashboard():
             <td>{log.get('section','')}</td>
             <td>{log.get('action','')}</td>
             <td>{log.get('success')}</td>
+            <td>{log.get('extra', {}).get('device','')}</td>
+            <td>{log.get('extra', {}).get('platform','')}</td>
+            <td>{log.get('extra', {}).get('language','')}</td>
         </tr>
         """
 
@@ -141,4 +144,3 @@ def view_logs_dashboard():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
