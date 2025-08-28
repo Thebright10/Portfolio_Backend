@@ -39,7 +39,10 @@ def save_log(doc):
 
 @app.route("/log-visitor", methods=["POST"])
 def log_visitor():
+    # Get the client IP
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    ip = ip.split(',')[0].strip()  # In case of multiple IPs
+
     ua = request.headers.get("User-Agent", "")
     payload = request.get_json(silent=True) or {}
 
@@ -48,8 +51,15 @@ def log_visitor():
     success = bool(payload.get("success", False))
     extra = payload.get("extra", {})
 
-    location = get_location(ip)
+    # Determine location
+    if ip == "127.0.0.1" or ip.startswith("192.168.") or ip.startswith("10."):
+        # Localhost or private IP
+        location = {"country": "Local", "region": "", "city": "", "isp": ""}
+    else:
+        # Fetch location from ip-api
+        location = get_location(ip)
 
+    # Prepare log entry
     doc = {
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
         "ip": ip,
@@ -65,6 +75,7 @@ def log_visitor():
     save_log(doc)
 
     return jsonify({"status": "ok", "logged": True})
+
 
 @app.route("/view-logs-dashboard", methods=["GET"])
 def view_logs_dashboard():
@@ -130,3 +141,4 @@ def view_logs_dashboard():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
